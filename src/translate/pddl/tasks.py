@@ -40,6 +40,18 @@ class Task:
         self.axioms.append(axiom)
         return axiom
 
+    def add_axioms_from_disjunction(self, parameters, conditions):
+        # Adds one new rule for each condition with the same derived variable each head.
+        # This can be used to replace disjunctions in conditions with axioms.
+        # NOTE: Does not return the axioms itself, returns only the name.
+        name = "new-axiom@%d" % self.axiom_counter
+        self.axiom_counter += 1
+        for cond in conditions:
+            axiom = axioms.Axiom(name, parameters, len(parameters), cond)
+            self.axioms.append(axiom)
+        self.predicates.append(predicates.Predicate(name, parameters))
+        return name
+
     def dump(self):
         print("Problem %s: %s [%s]" % (
             self.domain_name, self.task_name, self.requirements))

@@ -4,6 +4,7 @@ import copy
 from typing import Sequence
 
 from translate import pddl
+from translate.options import get_options
 
 class ConditionProxy:
     def clone_owner(self):
@@ -175,6 +176,52 @@ def remove_universal_quantifiers(task):
             type_map = proxy.get_type_map()
             proxy.set(recurse(proxy.condition))
 
+def replace_disjunctions_with_axioms(task):
+    def recurse(condition):
+        new_parts = []
+        for part in condition.parts:
+            part = recurse(part)
+            new_parts.append(part)
+        if isinstance(condition, pddl.Disjunction):
+            parameters = sorted(condition.free_variables())
+            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+            axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
+            return pddl.Atom(axiom_name, parameters)
+        else:
+            return condition.change_parts(new_parts)
+
+    for proxy in all_conditions(task):
+        if proxy.condition.has_disjunction():
+            type_map = proxy.get_type_map() # todo figure out what this does exactly, taken from above method
+            proxy.set(recurse(proxy.condition).simplified())
+
+def replace_all_conditions_with_axioms(task):
+
+    def recurse(condition):
+        new_parts = []
+        for part in condition.parts:
+            part = recurse(part)
+            new_parts.append(part)
+        if isinstance(condition, pddl.Disjunction):
+            parameters = sorted(condition.free_variables())
+            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+            axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
+            return pddl.Atom(axiom_name, parameters)
+        elif isinstance(condition, pddl.Conjunction):
+            new_condition = pddl.Conjunction(new_parts)
+            parameters = sorted(condition.free_variables())
+            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+
+            axiom = task.add_axiom(typed_parameters, new_condition)
+            atom = pddl.Atom(axiom.name, parameters)
+            return atom
+        else:
+            return condition.change_parts(new_parts)
+
+    for proxy in all_conditions(task):
+        if proxy.condition.has_disjunction():
+            type_map = proxy.get_type_map() # todo figure out what this does exactly, taken from above method
+            proxy.set(recurse(proxy.condition).simplified())
 
 # [2] Pull disjunctions to the root of the condition.
 #
@@ -343,6 +390,10 @@ def substitute_complicated_goal(task):
 def normalize(task):
     remove_universal_quantifiers(task)
     substitute_complicated_goal(task)
+    if get_options().elim_disj == "all":
+        replace_disjunctions_with_axioms(task)
+    if get_options().elim_disj == "extreme":
+        replace_all_conditions_with_axioms(task)
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)

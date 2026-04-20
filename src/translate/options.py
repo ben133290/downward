@@ -83,6 +83,9 @@ def parse_args(args=None):
         help="How to assign layers to derived variables. 'min' attempts to put as "
         "many variables into the same layer as possible, while 'max' puts each variable "
         "into its own layer unless it is part of a cycle.")
+    argparser.add_argument(
+        "--eliminate-disjunctions", dest="elim_disj", default="none", choices=["none", "all", "extreme"],
+        help="Transform disjunctions to disjunctive axioms, potentialy reducing task representation size.")
     return argparser.parse_args(args)
 
 
