@@ -12,7 +12,7 @@ import common_setup
 from common_setup import IssueConfig, IssueExperiment
 
 DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_DIR = os.environ["DOWNWARD_REPO_ISSUE1146"]
+REPO_DIR = os.environ["DOWNWARD_REPO"]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
 REVISIONS = ["main", "issue1146"]
 BUILDS = ["release"]
