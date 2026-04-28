@@ -9,7 +9,7 @@ from common_setup import OptionsConfig, TranslatorExperiment
 DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.environ["DOWNWARD_REPO"]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISIONS = ["proto"]
+REVISIONS = ["9cee9542ab43cb5c420237011414f127353b4535"]
 BUILDS = ["release"]
 CONFIG_NICKS = [
     ("astar-blind", ["--search", "astar(blind())"]),
