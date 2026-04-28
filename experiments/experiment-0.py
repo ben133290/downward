@@ -2,19 +2,16 @@
 
 import os
 import custom_parser
-
 from lab.environments import LocalEnvironment, BaselSlurmEnvironment
 from lab.experiment import Experiment
-
 from downward.experiment import FastDownwardExperiment
-
 import common_setup
 from common_setup import IssueConfig, IssueExperiment
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.environ["DOWNWARD_REPO"]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISIONS = ["main", "issue1146"]
+REVISIONS = ["proto"]
 BUILDS = ["release"]
 CONFIG_NICKS = [
     ("astar-blind", ["--search", "astar(blind())"]),
