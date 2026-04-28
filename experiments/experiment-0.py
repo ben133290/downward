@@ -39,7 +39,7 @@ ENVIRONMENT = BaselSlurmEnvironment(
 print(BENCHMARKS_DIR)
 print(REPO_DIR)
 
-exp = TranslatorExperiment(repo_path=REPO_DIR, revisions=REVISIONS, configs=CONFIGS, path=None)
+exp = TranslatorExperiment(repo_path=REPO_DIR, revisions=REVISIONS, configs=CONFIGS, path=None, environment=ENVIRONMENT)
 
 exp.add_suite(BENCHMARKS_DIR, SUITE)
 
