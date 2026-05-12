@@ -177,7 +177,7 @@ def remove_universal_quantifiers(task):
             proxy.set(recurse(proxy.condition))
 
 
-# [2-axiom] Alternative to [2] (build_DNF):
+# [2-axiom-all] Alternative to [2] (build_DNF):
 # We replace every construct that is not a condition of the form "and of literals" with an axiom,
 # and replace the condition by a literal using that axiom. This can be used if we want to avoid
 # the potential exponential blow-up of DNF.
@@ -201,7 +201,7 @@ def replace_disjunctions_with_axioms(task):
         else:
             return condition.change_parts(new_parts)
 
-    for proxy in all_conditions(task):
+    for proxy in tuple(all_conditions(task)):
         if proxy.condition.has_disjunction():
             type_map = proxy.get_type_map()
             proxy.set(recurse(proxy.condition))
@@ -216,12 +216,10 @@ def replace_all_conditions_with_axioms(task):
         for part in condition.parts:
             part = recurse(part)
             new_parts.append(part)
-
         parameters = sorted(condition.free_variables())
         typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
 
         if isinstance(condition, pddl.Disjunction):
-
             axiom_name = task.get_equivalent_axiom(new_parts)
             if axiom_name:
                 return pddl.Atom(axiom_name, parameters)
@@ -235,12 +233,11 @@ def replace_all_conditions_with_axioms(task):
 
             new_condition = pddl.Conjunction(new_parts)
             axiom = task.add_axiom(typed_parameters, new_condition)
-            atom = pddl.Atom(axiom.name, parameters)
-            return atom
+            return pddl.Atom(axiom.name, parameters)
         else:
             return condition.change_parts(new_parts)
-
-    for proxy in all_conditions(task):
+    
+    for proxy in list(all_conditions(task)):
         type_map = proxy.get_type_map()
         proxy.set(recurse(proxy.condition))
 
