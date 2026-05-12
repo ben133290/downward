@@ -415,7 +415,6 @@ def normalize(task):
         replace_disjunctions_with_axioms(task)
     if get_options().elim_disj == "extreme":
         replace_all_conditions_with_axioms(task)
-    task.dump()
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)

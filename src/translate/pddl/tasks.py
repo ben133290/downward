@@ -67,11 +67,9 @@ class Task:
     def get_equivalent_axiom(self, conditions):
         for derived_predicate_name in self.axiom_dict:
             other_conditions = [cond.condition for cond in  self.axiom_dict[derived_predicate_name]]
-            print(f"Checking for equivalent axiom to {conditions}: |||| {other_conditions}")
             # check if both lists are the same
             if (Counter(conditions) == Counter(other_conditions)):
                 # TODO: figure out if condition hashes are unique
-                print("found another axiom match")
                 return derived_predicate_name
 
 
