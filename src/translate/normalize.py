@@ -176,6 +176,11 @@ def remove_universal_quantifiers(task):
             type_map = proxy.get_type_map()
             proxy.set(recurse(proxy.condition))
 
+
+# [2-axiom] Alternative to [2] (build_DNF):
+# We replace every construct that is not a condition of the form "and of literals" with an axiom,
+# and replace the condition by a literal using that axiom. This can be used if we want to avoid
+# the potential exponential blow-up of DNF.
 def replace_disjunctions_with_axioms(task):
     def recurse(condition):
         new_parts = []
@@ -185,6 +190,12 @@ def replace_disjunctions_with_axioms(task):
         if isinstance(condition, pddl.Disjunction):
             parameters = sorted(condition.free_variables())
             typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+
+            # Check if there is already an equivalent axiom
+            axiom_name = task.get_equivalent_axiom(new_parts)
+            if axiom_name:
+                return pddl.Atom(axiom_name, parameters)
+
             axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
             return pddl.Atom(axiom_name, parameters)
         else:
@@ -192,9 +203,12 @@ def replace_disjunctions_with_axioms(task):
 
     for proxy in all_conditions(task):
         if proxy.condition.has_disjunction():
-            type_map = proxy.get_type_map() # todo figure out what this does exactly, taken from above method
-            proxy.set(recurse(proxy.condition).simplified())
+            type_map = proxy.get_type_map()
+            proxy.set(recurse(proxy.condition))
 
+# [2-axiom-extreme] Alternative to [2] (build_DNF):
+# We replace all disjunctions and conjunctions with axioms, such that the task only has conditions consisting of a single
+# derived variable.
 def replace_all_conditions_with_axioms(task):
 
     def recurse(condition):
@@ -202,16 +216,24 @@ def replace_all_conditions_with_axioms(task):
         for part in condition.parts:
             part = recurse(part)
             new_parts.append(part)
+
+        parameters = sorted(condition.free_variables())
+        typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+
         if isinstance(condition, pddl.Disjunction):
-            parameters = sorted(condition.free_variables())
-            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+
+            axiom_name = task.get_equivalent_axiom(new_parts)
+            if axiom_name:
+                return pddl.Atom(axiom_name, parameters)
+
             axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
             return pddl.Atom(axiom_name, parameters)
         elif isinstance(condition, pddl.Conjunction):
-            new_condition = pddl.Conjunction(new_parts)
-            parameters = sorted(condition.free_variables())
-            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+            axiom_name = task.get_equivalent_axiom(new_parts)
+            if axiom_name:
+                return pddl.Atom(axiom_name, parameters)
 
+            new_condition = pddl.Conjunction(new_parts)
             axiom = task.add_axiom(typed_parameters, new_condition)
             atom = pddl.Atom(axiom.name, parameters)
             return atom
@@ -219,9 +241,8 @@ def replace_all_conditions_with_axioms(task):
             return condition.change_parts(new_parts)
 
     for proxy in all_conditions(task):
-        if proxy.condition.has_disjunction():
-            type_map = proxy.get_type_map() # todo figure out what this does exactly, taken from above method
-            proxy.set(recurse(proxy.condition).simplified())
+        type_map = proxy.get_type_map()
+        proxy.set(recurse(proxy.condition))
 
 # [2] Pull disjunctions to the root of the condition.
 #
@@ -394,6 +415,7 @@ def normalize(task):
         replace_disjunctions_with_axioms(task)
     if get_options().elim_disj == "extreme":
         replace_all_conditions_with_axioms(task)
+    task.dump()
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)

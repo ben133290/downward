@@ -9,6 +9,7 @@ from translate.pddl.f_expression import Assign
 from translate.pddl.functions import Function
 from translate.pddl.pddl_types import Type, TypedObject
 from translate.pddl.predicates import Predicate
+from collections import Counter
 
 class Task:
     def __init__(self, domain_name: str, task_name: str,
@@ -31,26 +32,48 @@ class Task:
         self.axioms = axioms
         self.axiom_counter = 0
         self.use_min_cost_metric = use_metric
+        self.axiom_dict = {} # could become the main datastructure for storing axioms in FD later
+        for axiom in axioms:
+            self.axiom_dict.setdefault(axiom.name, []).append(axiom)
+
+
+    # Add a single axiom to both self.axioms and self.axiom_dict.
+    def _register_axiom(self, axiom):
+        self.axioms.append(axiom)
+        self.axiom_dict.setdefault(axiom.name, []).append(axiom)
 
     def add_axiom(self, parameters, condition):
         name = "new-axiom@%d" % self.axiom_counter
         self.axiom_counter += 1
         axiom = axioms.Axiom(name, parameters, len(parameters), condition)
         self.predicates.append(predicates.Predicate(name, parameters))
-        self.axioms.append(axiom)
+        self._register_axiom(axiom)
         return axiom
 
+    # Alternative implementation of add_axiom. Adds one new rule for each condition 
+    # with the same derived variable each head.
+    # This method is used by step [2-axiom] of normalize.py to replace disjunctions 
+    # in conditions with axioms.
     def add_axioms_from_disjunction(self, parameters, conditions):
-        # Adds one new rule for each condition with the same derived variable each head.
-        # This can be used to replace disjunctions in conditions with axioms.
-        # NOTE: Does not return the axioms itself, returns only the name.
         name = "new-axiom@%d" % self.axiom_counter
         self.axiom_counter += 1
         for cond in conditions:
             axiom = axioms.Axiom(name, parameters, len(parameters), cond)
-            self.axioms.append(axiom)
+            self._register_axiom(axiom)
         self.predicates.append(predicates.Predicate(name, parameters))
         return name
+
+    # used to check wether there is already an equivalent axiom (theoretically O(n^2))
+    def get_equivalent_axiom(self, conditions):
+        for derived_predicate_name in self.axiom_dict:
+            other_conditions = [cond.condition for cond in  self.axiom_dict[derived_predicate_name]]
+            print(f"Checking for equivalent axiom to {conditions}: |||| {other_conditions}")
+            # check if both lists are the same
+            if (Counter(conditions) == Counter(other_conditions)):
+                # TODO: figure out if condition hashes are unique
+                print("found another axiom match")
+                return derived_predicate_name
+
 
     def dump(self):
         print("Problem %s: %s [%s]" % (
