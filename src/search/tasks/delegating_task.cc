@@ -11,6 +11,10 @@ int DelegatingTask::get_num_variables() const {
     return parent->get_num_variables();
 }
 
+int DelegatingTask::get_num_primary_variables() const {
+    return parent->get_num_primary_variables();
+}
+
 string DelegatingTask::get_variable_name(int var) const {
     return parent->get_variable_name(var);
 }

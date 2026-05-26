@@ -67,6 +67,7 @@ public:
     }
 
     virtual int get_num_variables() const override;
+    virtual int get_num_primary_variables() const override;
     virtual string get_variable_name(int var) const override;
     virtual int get_variable_domain_size(int var) const override;
     virtual int get_variable_axiom_layer(int var) const override;
@@ -768,6 +769,16 @@ const ExplicitOperator &RootTask::get_operator_or_axiom(
 
 int RootTask::get_num_variables() const {
     return variables.size();
+}
+
+int RootTask::get_num_primary_variables() const {
+    int count = 0;
+    for (ExplicitVariable var : variables) {
+        if (var.axiom_layer == -1) {
+            count++;
+        }
+    }
+    return count;
 }
 
 string RootTask::get_variable_name(int var) const {

@@ -52,6 +52,7 @@ public:
     AbstractTask() = default;
     virtual ~AbstractTask() override = default;
     virtual int get_num_variables() const = 0;
+    virtual int get_num_primary_variables() const = 0;
     virtual std::string get_variable_name(int var) const = 0;
     virtual int get_variable_domain_size(int var) const = 0;
     virtual int get_variable_axiom_layer(int var) const = 0;
