@@ -183,7 +183,11 @@ PerTaskInformation<int_packer::IntPacker> g_state_packers_benedikt(
         vector<int> variable_ranges;
         variable_ranges.reserve(variables.size_primary());
         for (VariableProxy var : variables) {
+<<<<<<< HEAD
             if (!var.is_derived()) {
+=======
+            if (var.is_derived()) {
+>>>>>>> a968aa84a02f9eea077fa23db3099f5aeb0eebb9
                 variable_ranges.push_back(var.get_domain_size());
             }
         }
