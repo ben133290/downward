@@ -22,6 +22,7 @@ public:
     virtual ~DelegatingTask() override = default;
 
     virtual int get_num_variables() const override;
+    virtual int get_num_primary_variables() const override;
     virtual std::string get_variable_name(int var) const override;
     virtual int get_variable_domain_size(int var) const override;
     virtual int get_variable_axiom_layer(int var) const override;

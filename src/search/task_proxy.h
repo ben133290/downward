@@ -330,6 +330,10 @@ public:
         return task->get_num_variables();
     }
 
+    std::size_t size_primary() const {
+        return task->get_num_primary_variables();
+    }
+
     VariableProxy operator[](std::size_t index) const {
         assert(index < size());
         return VariableProxy(*task, index);

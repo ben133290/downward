@@ -176,4 +176,18 @@ PerTaskInformation<int_packer::IntPacker> g_state_packers(
         }
         return make_unique<int_packer::IntPacker>(variable_ranges);
     });
+
+PerTaskInformation<int_packer::IntPacker> g_state_packers_benedikt(
+    [](const TaskProxy &task_proxy) {
+        VariablesProxy variables = task_proxy.get_variables();
+        vector<int> variable_ranges;
+        variable_ranges.reserve(variables.size_primary());
+        for (VariableProxy var : variables) {
+            if (!var.is_derived()) {
+                variable_ranges.push_back(var.get_domain_size());
+            }
+        }
+        return make_unique<int_packer::IntPacker>(variable_ranges);
+    });
+
 }
