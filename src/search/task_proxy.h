@@ -782,7 +782,8 @@ inline bool State::operator!=(const State &other) const {
 
 inline void State::unpack() const {
     if (!values) {
-        int num_variables = size();
+        const int num_primary_variables = task->get_num_primary_variables();
+        const int num_derived_variables = size() - num_primary_variables;
         /*
           A micro-benchmark in issue348 showed that constructing the vector
           in the required size and then assigning values was faster than the
@@ -794,10 +795,27 @@ inline void State::unpack() const {
           structures that exploit sequentially unpacking each entry, by doing
           things bin by bin.)
         */
-        values = std::make_shared<std::vector<int>>(num_variables);
-        for (int var = 0; var < num_variables; ++var) {
-            (*values)[var] = state_packer->get(buffer, var);
+        values = std::make_shared<std::vector<int>>(
+            num_primary_variables + num_derived_variables);
+        for (int var = 0; var < num_primary_variables + num_derived_variables;
+             ++var) {
+            if (task->get_variable_axiom_layer(var) == -1) {
+                (*values)[var] = state_packer->get(buffer, var);
+            }
         }
+
+        std::cout << "DEBUG values: [";
+        for (int i = 0; i < num_primary_variables + num_derived_variables;
+             ++i) {
+            std::cout << (*values)[i];
+            if (i < num_primary_variables + num_derived_variables - 1)
+                std::cout << ", ";
+        }
+        std::cout << "]\n";
+        std::cout << "DEBUG: number of variables: PRIMARY: "
+                  << num_primary_variables
+                  << " DERIVED: " << num_derived_variables << std::endl;
+        std::cout << "DEBUG: values size: " << values->size() << std::endl;
     }
 }
 
@@ -817,7 +835,14 @@ inline FactProxy State::operator[](std::size_t var_id) const {
 }
 
 inline FactProxy State::operator[](VariableProxy var) const {
-    return (*this)[var.get_id()];
+    if (var.is_derived()) {
+        unpack(); // NOTE: The problem with this, is that this gets called for
+                  // every state therefore unpacking every state
+                  // TODO: We need to find a way to evaluate from here...
+        return FactProxy(*task, var.get_id(), (*values)[var.get_id()]);
+    } else {
+        return (*this)[var.get_id()];
+    }
 }
 
 inline TaskProxy State::get_task() const {

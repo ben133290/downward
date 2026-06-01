@@ -1,6 +1,7 @@
 #ifndef TASK_UTILS_TASK_PROPERTIES_H
 #define TASK_UTILS_TASK_PROPERTIES_H
 
+#include "../axioms.h"
 #include "../per_task_information.h"
 #include "../task_proxy.h"
 
@@ -16,8 +17,41 @@ inline bool is_applicable(OperatorProxy op, const State &state) {
 }
 
 inline bool is_goal_state(TaskProxy task, const State &state) {
+    // NOTE: We could split this method into two versions, one that gets called
+    // when the goel doesn't have a derived varibale and one the gets called
+    // when a derived variable exists in the goal. Since this is actually a
+    // property of the task and doesn't need to be reevaluated every time we
+    // want to check wether a state is a goal state.
+    bool has_derived_goal_var = false;
     for (FactProxy goal : task.get_goals()) {
-        if (state[goal.get_variable()] != goal)
+        std::cout << "DEBUG: goal variable:" << goal.get_name() << std::endl;
+        if (goal.get_variable().is_derived()) {
+            has_derived_goal_var = true;
+            break;
+        }
+    }
+
+    std::cout << "DEBUG: goal state is derived: " << has_derived_goal_var
+              << std::endl;
+
+    if (!has_derived_goal_var) {
+        // Fast path: no derived goals, check directly
+        for (FactProxy goal : task.get_goals()) {
+            if (state[goal.get_variable()] != goal)
+                return false;
+        }
+        return true;
+    }
+
+    state.unpack();
+    std::vector<int> values = state.get_unpacked_values();
+
+    AxiomEvaluator &evaluator = g_axiom_evaluators[task];
+    evaluator.evaluate(values);
+
+    for (FactProxy goal : task.get_goals()) {
+        int var_id = goal.get_variable().get_id();
+        if (values[var_id] != goal.get_value())
             return false;
     }
     return true;
