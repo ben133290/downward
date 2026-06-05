@@ -127,7 +127,8 @@ SearchStatus EagerSearch::step() {
 optional<SearchNode> EagerSearch::get_next_node_to_expand() {
     while (!open_list->empty()) {
         StateID id = open_list->remove_min();
-        State s = state_registry.lookup_state(id);
+        State s = state_registry.lookup_state(
+            id); // State gets created here, but has a nullptr for values vector
         SearchNode node = search_space.get_node(s);
 
         if (node.is_closed())

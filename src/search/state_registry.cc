@@ -6,11 +6,13 @@
 #include "task_utils/task_properties.h"
 #include "utils/logging.h"
 
+#include <cstddef>
+
 using namespace std;
 
 StateRegistry::StateRegistry(const TaskProxy &task_proxy)
     : task_proxy(task_proxy),
-      state_packer(task_properties::g_state_packers[task_proxy]),
+      state_packer(task_properties::g_state_packers_benedikt[task_proxy]),
       axiom_evaluator(g_axiom_evaluators[task_proxy]),
       num_variables(task_proxy.get_variables().size()),
       state_data_pool(get_bins_per_state()),
@@ -45,7 +47,7 @@ State StateRegistry::lookup_state(StateID id) const {
 State StateRegistry::lookup_state(
     StateID id, vector<int> &&state_values) const {
     const PackedStateBin *buffer = state_data_pool[id.value];
-    return task_proxy.create_state(*this, id, buffer, move(state_values));
+    return task_proxy.create_state(*this, id, buffer, std::move(state_values));
 }
 
 const State &StateRegistry::get_initial_state() {
@@ -56,8 +58,13 @@ const State &StateRegistry::get_initial_state() {
         fill_n(buffer.get(), num_bins, 0);
 
         State initial_state = task_proxy.get_initial_state();
+        int id_primary_var = 0;
         for (size_t i = 0; i < initial_state.size(); ++i) {
-            state_packer.set(buffer.get(), i, initial_state[i].get_value());
+            if (!initial_state[i].get_variable().is_derived()) {
+                state_packer.set(
+                    buffer.get(), id_primary_var, initial_state[i].get_value());
+                ++id_primary_var;
+            }
         }
         state_data_pool.push_back(buffer.get());
         StateID id = insert_id_or_pop_state();
@@ -84,21 +91,33 @@ State StateRegistry::get_successor_state(
     /* Experiments for issue348 showed that for tasks with axioms it's faster
        to compute successor states using unpacked data. */
     if (task_properties::has_axioms(task_proxy)) {
-        predecessor.unpack();
+        // predecessor.unpack();
+        /* NOTE: We know that the state predecessor has
+           already been unpacked, if not we want an error. */
         vector<int> new_values = predecessor.get_unpacked_values();
+
         for (EffectProxy effect : op.get_effects()) {
             if (does_fire(effect, predecessor)) {
                 FactPair effect_pair = effect.get_fact().get_pair();
                 new_values[effect_pair.var] = effect_pair.value;
             }
         }
-        axiom_evaluator.evaluate(new_values);
+
+        // NOTE: We don't have to evaluate axioms for new_values because we
+        // only write the primary variables in the following code block
+        // axiom_evaluator.evaluate(new_values);
+        int id_primary_var = 0;
         for (size_t i = 0; i < new_values.size(); ++i) {
-            state_packer.set(buffer, i, new_values[i]);
+            if (!task_proxy.get_variables()[i].is_derived()) {
+                state_packer.set(buffer, id_primary_var, new_values[i]);
+                ++id_primary_var;
+            }
         }
+
         /*
           NOTE: insert_id_or_pop_state possibly invalidates buffer, hence
-          we use lookup_state to retrieve the state using the correct buffer.
+          we use lookup_state to retrieve the state using the correct
+          buffer.
         */
         StateID id = insert_id_or_pop_state();
         return lookup_state(id, move(new_values));
@@ -111,7 +130,8 @@ State StateRegistry::get_successor_state(
         }
         /*
           NOTE: insert_id_or_pop_state possibly invalidates buffer, hence
-          we use lookup_state to retrieve the state using the correct buffer.
+          we use lookup_state to retrieve the state using the correct
+          buffer.
         */
         StateID id = insert_id_or_pop_state();
         return lookup_state(id);

@@ -13,6 +13,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -587,6 +588,7 @@ class State {
     mutable std::shared_ptr<std::vector<int>> values;
     const int_packer::IntPacker *state_packer;
     int num_variables;
+    int num_primary_variables;
 public:
     using ItemType = FactProxy;
 
@@ -609,6 +611,10 @@ public:
     void unpack() const;
 
     std::size_t size() const;
+    std::size_t size_primary() const;
+
+    void set_values(std::vector<int> new_values) const;
+
     FactProxy operator[](std::size_t var_id) const;
     FactProxy operator[](VariableProxy var) const;
 
@@ -797,30 +803,23 @@ inline void State::unpack() const {
         */
         values = std::make_shared<std::vector<int>>(
             num_primary_variables + num_derived_variables);
+        int id_primary_variable = 0;
         for (int var = 0; var < num_primary_variables + num_derived_variables;
              ++var) {
             if (task->get_variable_axiom_layer(var) == -1) {
-                (*values)[var] = state_packer->get(buffer, var);
+                (*values)[var] = state_packer->get(buffer, id_primary_variable);
+                ++id_primary_variable;
             }
         }
-
-        std::cout << "DEBUG values: [";
-        for (int i = 0; i < num_primary_variables + num_derived_variables;
-             ++i) {
-            std::cout << (*values)[i];
-            if (i < num_primary_variables + num_derived_variables - 1)
-                std::cout << ", ";
-        }
-        std::cout << "]\n";
-        std::cout << "DEBUG: number of variables: PRIMARY: "
-                  << num_primary_variables
-                  << " DERIVED: " << num_derived_variables << std::endl;
-        std::cout << "DEBUG: values size: " << values->size() << std::endl;
     }
 }
 
 inline std::size_t State::size() const {
     return num_variables;
+}
+
+inline std::size_t State::size_primary() const {
+    return num_primary_variables;
 }
 
 inline FactProxy State::operator[](std::size_t var_id) const {
@@ -830,19 +829,13 @@ inline FactProxy State::operator[](std::size_t var_id) const {
     } else {
         assert(buffer);
         assert(state_packer);
+        assert(var_id < size_primary());
         return FactProxy(*task, var_id, state_packer->get(buffer, var_id));
     }
 }
 
 inline FactProxy State::operator[](VariableProxy var) const {
-    if (var.is_derived()) {
-        unpack(); // NOTE: The problem with this, is that this gets called for
-                  // every state therefore unpacking every state
-                  // TODO: We need to find a way to evaluate from here...
-        return FactProxy(*task, var.get_id(), (*values)[var.get_id()]);
-    } else {
-        return (*this)[var.get_id()];
-    }
+    return (*this)[var.get_id()];
 }
 
 inline TaskProxy State::get_task() const {
