@@ -130,7 +130,7 @@ SearchStatus LazySearch::fetch_next_state() {
     current_predecessor_id = next.first;
     current_operator_id = next.second;
     State current_predecessor =
-        state_registry.lookup_state(current_predecessor_id);
+        state_registry.lookup_state_and_eval_axioms(current_predecessor_id);
     OperatorProxy current_operator =
         task_proxy.get_operators()[current_operator_id];
     assert(
@@ -166,7 +166,8 @@ SearchStatus LazySearch::step() {
     // current_state from predecessor.
     // - current_g is the g value of the current state according to the
     // cost_type
-    // - current_real_g is the g value of the current state (using real costs)
+    // - current_real_g is the g value of the current state (using real
+    // costs)
 
     SearchNode node = search_space.get_node(current_state);
     bool reopen = reopen_closed_nodes && !node.is_new() &&
@@ -177,7 +178,8 @@ SearchStatus LazySearch::step() {
             assert(current_predecessor_id != StateID::no_state);
             if (!path_dependent_evaluators.empty()) {
                 State parent_state =
-                    state_registry.lookup_state(current_predecessor_id);
+                    state_registry.lookup_state_and_eval_axioms(
+                        current_predecessor_id);
                 for (Evaluator *evaluator : path_dependent_evaluators)
                     evaluator->notify_state_transition(
                         parent_state, current_operator_id, current_state);
@@ -191,7 +193,8 @@ SearchStatus LazySearch::step() {
                     statistics.print_checkpoint_line(current_g);
             } else {
                 State parent_state =
-                    state_registry.lookup_state(current_predecessor_id);
+                    state_registry.lookup_state_and_eval_axioms(
+                        current_predecessor_id);
                 SearchNode parent_node = search_space.get_node(parent_state);
                 OperatorProxy current_operator =
                     task_proxy.get_operators()[current_operator_id];

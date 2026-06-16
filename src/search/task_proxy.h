@@ -620,6 +620,8 @@ public:
 
     TaskProxy get_task() const;
 
+    void dump() const;
+
     /* Return a pointer to the registry in which this state is registered.
        If the state is not registered, return nullptr. */
     const StateRegistry *get_registry() const;
@@ -842,6 +844,20 @@ inline TaskProxy State::get_task() const {
     return TaskProxy(*task);
 }
 
+inline void State::dump() const {
+    assert(values);
+    std::cout << "STATE: " << id;
+    if (values) {
+        std::cout << " values: [";
+        for (int j : get_unpacked_values()) {
+            std::cout << j << ", ";
+        }
+        std::cout << "]" << std::endl;
+    } else {
+        std::cout << " values: []" << std::endl;
+    }
+}
+
 inline const StateRegistry *State::get_registry() const {
     return registry;
 }
@@ -852,9 +868,9 @@ inline StateID State::get_id() const {
 
 inline const PackedStateBin *State::get_buffer() const {
     /*
-      TODO: we should profile what happens if we #ifndef NDEBUG this test here
-      and in other places (e.g. the next method). The 'if' itself is probably
-      not costly, but the 'cerr <<' stuff might prevent inlining.
+      TODO: we should profile what happens if we #ifndef NDEBUG this test
+      here and in other places (e.g. the next method). The 'if' itself is
+      probably not costly, but the 'cerr <<' stuff might prevent inlining.
     */
     if (!buffer) {
         std::cerr << "Accessing the packed values of an unregistered state is "

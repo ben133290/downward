@@ -7,6 +7,7 @@
 #include "utils/logging.h"
 
 #include <cstddef>
+#include <vector>
 
 using namespace std;
 
@@ -44,6 +45,15 @@ State StateRegistry::lookup_state(StateID id) const {
     return task_proxy.create_state(*this, id, buffer);
 }
 
+State StateRegistry::lookup_state_and_eval_axioms(StateID id) const {
+    State new_state = lookup_state(id);
+    new_state.unpack();
+    std::vector<int> values = new_state.get_unpacked_values();
+    axiom_evaluator.evaluate(values);
+    new_state.set_values(values);
+    return new_state;
+}
+
 State StateRegistry::lookup_state(
     StateID id, vector<int> &&state_values) const {
     const PackedStateBin *buffer = state_data_pool[id.value];
@@ -69,6 +79,12 @@ const State &StateRegistry::get_initial_state() {
         state_data_pool.push_back(buffer.get());
         StateID id = insert_id_or_pop_state();
         cached_initial_state = make_unique<State>(lookup_state(id));
+
+        // NOTE: Not required for eager search but for lazy search
+        cached_initial_state->unpack();
+        std::vector<int> values = cached_initial_state->get_unpacked_values();
+        axiom_evaluator.evaluate(values);
+        cached_initial_state->set_values(values);
     }
     return *cached_initial_state;
 }
@@ -91,9 +107,9 @@ State StateRegistry::get_successor_state(
     /* Experiments for issue348 showed that for tasks with axioms it's faster
        to compute successor states using unpacked data. */
     if (task_properties::has_axioms(task_proxy)) {
-        // predecessor.unpack();
-        /* NOTE: We know that the state predecessor has
-           already been unpacked, if not we want an error. */
+        predecessor.unpack();
+        /* NOTE: In most cases the state has already been unpacked, but not in
+         * case of lazy search. */
         vector<int> new_values = predecessor.get_unpacked_values();
 
         for (EffectProxy effect : op.get_effects()) {
@@ -105,7 +121,7 @@ State StateRegistry::get_successor_state(
 
         // NOTE: We don't have to evaluate axioms for new_values because we
         // only write the primary variables in the following code block
-        // axiom_evaluator.evaluate(new_values);
+        axiom_evaluator.evaluate(new_values);
         int id_primary_var = 0;
         for (size_t i = 0; i < new_values.size(); ++i) {
             if (!task_proxy.get_variables()[i].is_derived()) {

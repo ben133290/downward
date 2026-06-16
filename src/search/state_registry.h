@@ -194,6 +194,13 @@ public:
     State lookup_state(StateID id) const;
 
     /*
+      Returns the state that was registered at the given ID and evaluates the
+      axioms. The ID must refer to a state in this registry. Do not mix IDs from
+      from different registries.
+    */
+    State lookup_state_and_eval_axioms(StateID id) const;
+
+    /*
       Like lookup_state above, but creates a state with unpacked data,
       moved in via state_values. It is the caller's responsibility that
       the unpacked data matches the state's data.
