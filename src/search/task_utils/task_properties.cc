@@ -166,18 +166,10 @@ void dump_task(const TaskProxy &task_proxy) {
     dump_goals(task_proxy.get_goals());
 }
 
+// MABH: This method used to include all variables derived and non-derived. A
+// more elegant implementation might include implementing a
+// get_primary_variables method for the task proxy.
 PerTaskInformation<int_packer::IntPacker> g_state_packers(
-    [](const TaskProxy &task_proxy) {
-        VariablesProxy variables = task_proxy.get_variables();
-        vector<int> variable_ranges;
-        variable_ranges.reserve(variables.size());
-        for (VariableProxy var : variables) {
-            variable_ranges.push_back(var.get_domain_size());
-        }
-        return make_unique<int_packer::IntPacker>(variable_ranges);
-    });
-
-PerTaskInformation<int_packer::IntPacker> g_state_packers_benedikt(
     [](const TaskProxy &task_proxy) {
         VariablesProxy variables = task_proxy.get_variables();
         vector<int> variable_ranges;
@@ -189,5 +181,4 @@ PerTaskInformation<int_packer::IntPacker> g_state_packers_benedikt(
         }
         return make_unique<int_packer::IntPacker>(variable_ranges);
     });
-
 }

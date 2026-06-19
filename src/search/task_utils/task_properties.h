@@ -20,11 +20,11 @@ inline bool is_goal_state(TaskProxy task, const State &state) {
     state.unpack();
     std::vector<int> values = state.get_unpacked_values();
 
-    AxiomEvaluator &evaluator = g_axiom_evaluators[task];
-    evaluator.evaluate(values);
-
-    state.set_values(values); // Required for derived vars to persist
-
+    if (!state.is_evaluated()) {
+        AxiomEvaluator &evaluator = g_axiom_evaluators[task];
+        evaluator.evaluate(values);
+        state.set_values(values); // Required for derived vars to persist
+    }
     for (FactProxy goal : task.get_goals()) {
         int var_id = goal.get_variable().get_id();
         if (values[var_id] != goal.get_value())
@@ -93,7 +93,6 @@ extern void dump_goals(const GoalsProxy &goals);
 extern void dump_task(const TaskProxy &task_proxy);
 
 extern PerTaskInformation<int_packer::IntPacker> g_state_packers;
-extern PerTaskInformation<int_packer::IntPacker> g_state_packers_benedikt;
 }
 
 #endif

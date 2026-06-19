@@ -13,7 +13,7 @@ using namespace std;
 
 StateRegistry::StateRegistry(const TaskProxy &task_proxy)
     : task_proxy(task_proxy),
-      state_packer(task_properties::g_state_packers_benedikt[task_proxy]),
+      state_packer(task_properties::g_state_packers[task_proxy]),
       axiom_evaluator(g_axiom_evaluators[task_proxy]),
       num_variables(task_proxy.get_variables().size()),
       state_data_pool(get_bins_per_state()),
@@ -49,7 +49,8 @@ State StateRegistry::lookup_state_and_eval_axioms(StateID id) const {
     State new_state = lookup_state(id);
     new_state.unpack();
     std::vector<int> values = new_state.get_unpacked_values();
-    axiom_evaluator.evaluate(values);
+    axiom_evaluator.evaluate(values); // the state was newly created so
+                                      // evaluated will always be false
     new_state.set_values(values);
     return new_state;
 }
@@ -108,8 +109,8 @@ State StateRegistry::get_successor_state(
        to compute successor states using unpacked data. */
     if (task_properties::has_axioms(task_proxy)) {
         predecessor.unpack();
-        /* NOTE: In most cases the state has already been unpacked, but not in
-         * case of lazy search. */
+        // NOTE: In most cases the state has already been unpacked, but not in
+        // case of lazy search.
         vector<int> new_values = predecessor.get_unpacked_values();
 
         for (EffectProxy effect : op.get_effects()) {
@@ -119,9 +120,11 @@ State StateRegistry::get_successor_state(
             }
         }
 
-        // NOTE: We don't have to evaluate axioms for new_values because we
-        // only write the primary variables in the following code block
-        axiom_evaluator.evaluate(new_values);
+        if (predecessor.is_evaluated()) { // If it was already evaluated, then
+            axiom_evaluator.evaluate(new_values);
+            predecessor.set_values(new_values);
+        }
+
         int id_primary_var = 0;
         for (size_t i = 0; i < new_values.size(); ++i) {
             if (!task_proxy.get_variables()[i].is_derived()) {
@@ -136,7 +139,7 @@ State StateRegistry::get_successor_state(
           buffer.
         */
         StateID id = insert_id_or_pop_state();
-        return lookup_state(id, move(new_values));
+        return lookup_state(id, std::move(new_values));
     } else {
         for (EffectProxy effect : op.get_effects()) {
             if (does_fire(effect, predecessor)) {

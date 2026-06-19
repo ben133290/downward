@@ -20,7 +20,8 @@ State::State(
       values(nullptr),
       state_packer(&registry.get_state_packer()),
       num_variables(registry.get_num_variables()),
-      num_primary_variables(task.get_num_primary_variables()) {
+      num_primary_variables(task.get_num_primary_variables()),
+      evaluated(false) {
     assert(id != StateID::no_state);
     assert(buffer);
     assert(num_variables == task.get_num_variables());
@@ -42,7 +43,8 @@ State::State(const AbstractTask &task, vector<int> &&values)
       values(make_shared<vector<int>>(std::move(values))),
       state_packer(nullptr),
       num_variables(this->values->size()),
-      num_primary_variables(task.get_num_primary_variables()) {
+      num_primary_variables(task.get_num_primary_variables()),
+      evaluated(true) {
     assert(num_variables == task.get_num_variables());
     assert(num_primary_variables == task.get_num_primary_variables());
 }
@@ -71,8 +73,10 @@ const causal_graph::CausalGraph &TaskProxy::get_causal_graph() const {
     return causal_graph::get_causal_graph(task);
 }
 
+// MABH: Use this only after evaluating axioms!
 void State::set_values(vector<int> new_values) const {
     assert(values); // must be unpacked first
     assert(static_cast<int>(new_values.size()) == num_variables);
     *values = std::move(new_values);
+    evaluated = true;
 }

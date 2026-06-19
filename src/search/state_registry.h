@@ -186,6 +186,10 @@ public:
         return state_packer;
     }
 
+    AxiomEvaluator &get_axiom_evaluator() const {
+        return axiom_evaluator;
+    }
+
     /*
       Returns the state that was registered at the given ID. The ID must refer
       to a state in this registry. Do not mix IDs from from different

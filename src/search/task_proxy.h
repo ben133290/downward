@@ -589,6 +589,7 @@ class State {
     const int_packer::IntPacker *state_packer;
     int num_variables;
     int num_primary_variables;
+    mutable bool evaluated;
 public:
     using ItemType = FactProxy;
 
@@ -609,6 +610,8 @@ public:
     /* Generate unpacked data if it is not available yet. Calling the function
        on a state that already has unpacked data has no effect. */
     void unpack() const;
+
+    bool is_evaluated() const;
 
     std::size_t size() const;
     std::size_t size_primary() const;
@@ -707,7 +710,8 @@ public:
         return State(*task, registry, id, buffer);
     }
 
-    // This method is meant to be called only by the state registry.
+    // This method is meant to be called only by the state registry. MABH: When
+    // this is used, make sure that the state values have been evaluated fully.
     State create_state(
         const StateRegistry &registry, StateID id, const PackedStateBin *buffer,
         std::vector<int> &&state_values) const {
@@ -788,6 +792,10 @@ inline bool State::operator!=(const State &other) const {
     return !(*this == other);
 }
 
+inline bool State::is_evaluated() const {
+    return evaluated;
+}
+
 inline void State::unpack() const {
     if (!values) {
         const int num_primary_variables = task->get_num_primary_variables();
@@ -813,6 +821,13 @@ inline void State::unpack() const {
                 ++id_primary_variable;
             }
         }
+
+        // MABH: Ideally we would evaluate the axioms at this point, but doing
+        // so would likely require some significant changes of the architecture.
+        // The main issue is that we cannot get access to the axiom evaluator of
+        // the state registry. Instead we use evaluated to check wether a state
+        // has been evaluated before;
+        evaluated = false;
     }
 }
 
