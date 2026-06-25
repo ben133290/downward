@@ -120,7 +120,7 @@ State StateRegistry::get_successor_state(
             }
         }
 
-        if (predecessor.is_evaluated()) { // If it was already evaluated, then
+        if (!predecessor.is_evaluated()) {
             axiom_evaluator.evaluate(new_values);
             predecessor.set_values(new_values);
         }
