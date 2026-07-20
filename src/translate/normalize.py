@@ -6,6 +6,15 @@ from typing import Sequence
 from translate import pddl
 from translate.options import get_options
 
+num_refactored_cond = 0
+num_refactored_disj = 0
+tot_blowup_potential = 0
+
+from math import prod
+
+class UnsupportedConditionError(Exception):
+    pass
+
 class ConditionProxy:
     def clone_owner(self):
         clone = copy.copy(self)
@@ -177,69 +186,96 @@ def remove_universal_quantifiers(task):
             proxy.set(recurse(proxy.condition))
 
 
-# [2-axiom-all] Alternative to [2] (build_DNF):
-# We replace every construct that is not a condition of the form "and of literals" with an axiom,
-# and replace the condition by a literal using that axiom. This can be used if we want to avoid
-# the potential exponential blow-up of DNF.
-def replace_disjunctions_with_axioms(task):
-    def recurse(condition):
+def axiom_refactor(task, mode):
+    # [2-axiom-extreme] Alternative to [2] (build_DNF):
+    # We replace all disjunctions and conjunctions with axioms, such that the task only has conditions consisting of a single
+    # derived variable.
+    def refactor_extreme(condition, type_map):
+        global num_refactored_disj
         new_parts = []
         for part in condition.parts:
-            part = recurse(part)
-            new_parts.append(part)
-        if isinstance(condition, pddl.Disjunction):
-            parameters = sorted(condition.free_variables())
-            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
-
-            # Check if there is already an equivalent axiom
-            axiom_name = task.get_equivalent_axiom(new_parts)
-            if axiom_name:
-                return pddl.Atom(axiom_name, parameters)
-
-            axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
-            return pddl.Atom(axiom_name, parameters)
-        else:
-            return condition.change_parts(new_parts)
-
-    for proxy in tuple(all_conditions(task)):
-        if proxy.condition.has_disjunction():
-            type_map = proxy.get_type_map()
-            proxy.set(recurse(proxy.condition))
-
-# [2-axiom-extreme] Alternative to [2] (build_DNF):
-# We replace all disjunctions and conjunctions with axioms, such that the task only has conditions consisting of a single
-# derived variable.
-def replace_all_conditions_with_axioms(task):
-
-    def recurse(condition):
-        new_parts = []
-        for part in condition.parts:
-            part = recurse(part)
+            part = refactor_extreme(part, type_map)
             new_parts.append(part)
         parameters = sorted(condition.free_variables())
         typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
-
         if isinstance(condition, pddl.Disjunction):
+            num_refactored_disj = num_refactored_disj + 1
             axiom_name = task.get_equivalent_axiom(new_parts)
             if axiom_name:
                 return pddl.Atom(axiom_name, parameters)
-
             axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
             return pddl.Atom(axiom_name, parameters)
         elif isinstance(condition, pddl.Conjunction):
             axiom_name = task.get_equivalent_axiom(new_parts)
             if axiom_name:
                 return pddl.Atom(axiom_name, parameters)
-
             new_condition = pddl.Conjunction(new_parts)
             axiom = task.add_axiom(typed_parameters, new_condition)
             return pddl.Atom(axiom.name, parameters)
         else:
             return condition.change_parts(new_parts)
-    
-    for proxy in list(all_conditions(task)):
-        type_map = proxy.get_type_map()
-        proxy.set(recurse(proxy.condition))
+
+    # Alternative to refactor_extreme:
+    # We replace every construct that is not a condition of the form "and of literals" with an axiom,
+    # and replace the condition by a literal using that axiom. This can be used if we want to avoid
+    # the potential exponential blow-up of DNF.
+    def refactor_all(condition):
+        global num_refactored_disj
+        new_parts = []
+        for part in condition.parts:
+            part = refactor_all(part)
+            new_parts.append(part)
+        if isinstance(condition, pddl.Disjunction):
+            num_refactored_disj = num_refactored_disj + 1
+            parameters = sorted(condition.free_variables())
+            typed_parameters = tuple(pddl.TypedObject(v, type_map[v]) for v in parameters)
+            # Check if there is already an equivalent axiom
+            axiom_name = task.get_equivalent_axiom(new_parts)
+            if axiom_name:
+                return pddl.Atom(axiom_name, parameters)
+            axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
+            return pddl.Atom(axiom_name, parameters)
+        else:
+            return condition.change_parts(new_parts)
+
+    def blowup_potential(condition):
+        if isinstance(condition, pddl.Truth):
+            return 1
+        elif isinstance(condition, pddl.Falsity):
+            return 0
+        elif isinstance(condition, pddl.Atom) or isinstance(condition, pddl.NegatedAtom):
+            return 1
+        elif isinstance(condition, pddl.Disjunction):
+            return sum(blowup_potential(part) for part in condition.parts)
+        elif isinstance(condition, pddl.Conjunction):
+            return prod(blowup_potential(part) for part in condition.parts)
+        elif isinstance(condition, pddl.ExistentialCondition):
+            return blowup_potential(condition.parts[0])
+        else:
+            raise UnsupportedConditionError(f"Encountered unexpected pddl condition type: {type(condition).__name__}")
+
+    global num_refactored_cond
+    global tot_blowup_potential
+    if mode == "all":
+        for proxy in tuple(all_conditions(task)):
+            if proxy.condition.has_disjunction():
+                proxy.set(refactor_all(proxy.condition))
+                num_refactored_cond = num_refactored_cond + 1
+    elif mode == "extreme":
+        for proxy in list(all_conditions(task)):
+            type_map = proxy.get_type_map()
+            proxy.set(refactor_extreme(proxy.condition, type_map))
+            num_refactored_cond = num_refactored_cond + 1
+    elif mode == "hybrid":
+        for proxy in tuple(all_conditions(task)):
+            if proxy.condition.has_disjunction():
+                bp = blowup_potential(proxy.condition)
+                tot_blowup_potential += bp
+                if bp >= 10:
+                    type_map = proxy.get_type_map()
+                    proxy.set(refactor_all(proxy.condition))
+                    num_refactored_cond = num_refactored_cond + 1
+
 
 # [2] Pull disjunctions to the root of the condition.
 #
@@ -408,17 +444,14 @@ def substitute_complicated_goal(task):
 def normalize(task):
     remove_universal_quantifiers(task)
     substitute_complicated_goal(task)
-    if get_options().elim_disj == "all":
-        replace_disjunctions_with_axioms(task)
-    if get_options().elim_disj == "extreme":
-        replace_all_conditions_with_axioms(task)
+    if get_options().elim_disj != "none":
+        axiom_refactor(task, get_options().elim_disj)
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)
     eliminate_existential_quantifiers_from_axioms(task)
     eliminate_existential_quantifiers_from_preconditions(task)
     eliminate_existential_quantifiers_from_conditional_effects(task)
-
     verify_axiom_predicates(task)
 
 def verify_axiom_predicates(task):

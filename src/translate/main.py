@@ -698,6 +698,10 @@ def main():
     with timers.timing("Normalizing task"):
         normalize.normalize(task)
 
+    print(f"Translator axiom refactored conditions: {normalize.num_refactored_cond}")
+    print(f"Translator axiom refactored disjunctions: {normalize.num_refactored_disj}")
+    print(f"Translator total blow-up potential: {normalize.tot_blowup_potential}")
+
     if get_options().generate_relaxed_task:
         # Remove delete effects.
         for action in task.actions:
