@@ -50,6 +50,7 @@ class Task:
         self._register_axiom(axiom)
         return axiom
 
+
     # Alternative implementation of add_axiom. Adds one new rule for each condition 
     # with the same derived variable each head.
     # This method is used by step [2-axiom] of normalize.py to replace disjunctions 
@@ -63,13 +64,13 @@ class Task:
         self.predicates.append(predicates.Predicate(name, parameters))
         return name
 
+
     # used to check wether there is already an equivalent axiom (theoretically O(n^2))
     def get_equivalent_axiom(self, conditions):
         for derived_predicate_name in self.axiom_dict:
-            other_conditions = [cond.condition for cond in  self.axiom_dict[derived_predicate_name]]
+            other_conditions = [cond.condition for cond in self.axiom_dict[derived_predicate_name]]
             # check if both lists are the same
             if (Counter(conditions) == Counter(other_conditions)):
-                # TODO: figure out if condition hashes are unique
                 return derived_predicate_name
 
 

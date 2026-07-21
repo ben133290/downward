@@ -219,11 +219,11 @@ def axiom_refactor(task, mode):
     # We replace every construct that is not a condition of the form "and of literals" with an axiom,
     # and replace the condition by a literal using that axiom. This can be used if we want to avoid
     # the potential exponential blow-up of DNF.
-    def refactor_all(condition):
+    def refactor_all(condition, type_map):
         global num_refactored_disj
         new_parts = []
         for part in condition.parts:
-            part = refactor_all(part)
+            part = refactor_all(part, type_map)
             new_parts.append(part)
         if isinstance(condition, pddl.Disjunction):
             num_refactored_disj = num_refactored_disj + 1
@@ -259,7 +259,8 @@ def axiom_refactor(task, mode):
     if mode == "all":
         for proxy in tuple(all_conditions(task)):
             if proxy.condition.has_disjunction():
-                proxy.set(refactor_all(proxy.condition))
+                type_map = proxy.get_type_map()
+                proxy.set(refactor_all(proxy.condition, type_map))
                 num_refactored_cond = num_refactored_cond + 1
     elif mode == "extreme":
         for proxy in list(all_conditions(task)):
@@ -446,11 +447,14 @@ def normalize(task):
     substitute_complicated_goal(task)
     if get_options().elim_disj != "none":
         axiom_refactor(task, get_options().elim_disj)
+    task.dump()
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)
     eliminate_existential_quantifiers_from_axioms(task)
+    task.dump()
     eliminate_existential_quantifiers_from_preconditions(task)
+    task.dump()
     eliminate_existential_quantifiers_from_conditional_effects(task)
     verify_axiom_predicates(task)
 
