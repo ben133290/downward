@@ -15,7 +15,7 @@ if not python_version_supported():
 
 from collections import defaultdict
 from copy import deepcopy
-from itertools import product
+from itertools import permutations, product
 
 from translate import axiom_rules
 from translate import fact_groups
@@ -491,7 +491,6 @@ def translate_task(
                                            implied_facts)
     axioms = translate_strips_axioms(axioms, strips_to_sas, ranges, mutex_dict,
                                      mutex_ranges)
-
     axiom_layers = [-1] * len(ranges)
     for atom, layer in axiom_layer_dict.items():
         assert layer >= 0
@@ -701,6 +700,13 @@ def main():
     print(f"Translator axiom refactored conditions: {normalize.num_refactored_cond}")
     print(f"Translator axiom refactored disjunctions: {normalize.num_refactored_disj}")
     print(f"Translator total blow-up potential: {normalize.tot_blowup_potential}")
+    print(f"Number of reused Axioms: {normalize.num_reused_axioms}")
+    if task.num_derived_vars > 0:
+        print(f"Number of derived variables in Preconditions: {normalize.num_derived_in_cond}")
+        print(f"Ratio of derived variables in Preconditions: {normalize.num_derived_in_cond / task.num_derived_vars}")
+    else:
+        print(f"Number of derived variables Preconditions: 0")
+        print(f"Ratio of derived variables Preconditions: 0")
 
     if get_options().generate_relaxed_task:
         # Remove delete effects.

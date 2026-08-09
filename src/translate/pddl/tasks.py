@@ -30,11 +30,15 @@ class Task:
         self.goal = goal
         self.actions = actions
         self.axioms = axioms
-        self.axiom_counter = 0
         self.use_min_cost_metric = use_metric
+
+
         self.axiom_dict = {} # could become the main datastructure for storing axioms in FD later
+        self.num_derived_vars = 0
         for axiom in axioms:
             self.axiom_dict.setdefault(axiom.name, []).append(axiom)
+            
+        self.num_derived_vars = len(self.axiom_dict) # we initialize this such that we know how many derived variables were already there
 
 
     # Add a single axiom to both self.axioms and self.axiom_dict.
@@ -43,8 +47,8 @@ class Task:
         self.axiom_dict.setdefault(axiom.name, []).append(axiom)
 
     def add_axiom(self, parameters, condition):
-        name = "new-axiom@%d" % self.axiom_counter
-        self.axiom_counter += 1
+        name = "new-axiom@%d" % self.num_derived_vars
+        self.num_derived_vars += 1
         axiom = axioms.Axiom(name, parameters, len(parameters), condition)
         self.predicates.append(predicates.Predicate(name, parameters))
         self._register_axiom(axiom)
@@ -56,8 +60,8 @@ class Task:
     # This method is used by step [2-axiom] of normalize.py to replace disjunctions 
     # in conditions with axioms.
     def add_axioms_from_disjunction(self, parameters, conditions):
-        name = "new-axiom@%d" % self.axiom_counter
-        self.axiom_counter += 1
+        name = "new-axiom@%d" % self.num_derived_vars
+        self.num_derived_vars += 1
         for cond in conditions:
             axiom = axioms.Axiom(name, parameters, len(parameters), cond)
             self._register_axiom(axiom)

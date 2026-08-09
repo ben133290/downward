@@ -9,6 +9,8 @@ from translate.options import get_options
 num_refactored_cond = 0
 num_refactored_disj = 0
 tot_blowup_potential = 0
+num_derived_in_cond = 0
+num_reused_axioms = 0
 
 from math import prod
 
@@ -221,6 +223,7 @@ def axiom_refactor(task, mode):
     # the potential exponential blow-up of DNF.
     def refactor_all(condition, type_map):
         global num_refactored_disj
+        global num_reused_axioms
         new_parts = []
         for part in condition.parts:
             part = refactor_all(part, type_map)
@@ -232,6 +235,7 @@ def axiom_refactor(task, mode):
             # Check if there is already an equivalent axiom
             axiom_name = task.get_equivalent_axiom(new_parts)
             if axiom_name:
+                num_reused_axioms = num_reused_axioms + 1
                 return pddl.Atom(axiom_name, parameters)
             axiom_name = task.add_axioms_from_disjunction(typed_parameters, new_parts)
             return pddl.Atom(axiom_name, parameters)
@@ -442,21 +446,39 @@ def substitute_complicated_goal(task):
 # Combine Steps [1], [2], [3], [4], [5] and do some additional verification
 # that the task makes sense.
 
+def compute_num_derived_variables_in_conditions(task):
+    global num_derived_in_cond
+    derived_variables_in_conditions = []
+
+    def recurse(condition):
+        if isinstance(condition, pddl.Atom):
+            for value in task.axiom_dict:
+                if condition.predicate == value:
+                    if value not in derived_variables_in_conditions:
+                        derived_variables_in_conditions.append(value)
+        else:
+            for part in condition.parts:
+                part = recurse(part)
+
+    for proxy in all_conditions(task):
+        if isinstance(proxy, PreconditionProxy) or isinstance(proxy, GoalConditionProxy):
+            recurse(proxy.condition)
+
+    num_derived_in_cond = len(derived_variables_in_conditions)
+
 def normalize(task):
     remove_universal_quantifiers(task)
     substitute_complicated_goal(task)
     if get_options().elim_disj != "none":
         axiom_refactor(task, get_options().elim_disj)
-    task.dump()
     build_DNF(task)
     split_disjunctions(task)
     move_existential_quantifiers(task)
     eliminate_existential_quantifiers_from_axioms(task)
-    task.dump()
     eliminate_existential_quantifiers_from_preconditions(task)
-    task.dump()
     eliminate_existential_quantifiers_from_conditional_effects(task)
     verify_axiom_predicates(task)
+    compute_num_derived_variables_in_conditions(task)
 
 def verify_axiom_predicates(task):
     # Verify that derived predicates are not used in :init or
