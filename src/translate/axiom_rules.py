@@ -106,6 +106,8 @@ def get_strongly_connected_components(dependencies):
 
     index_groups = sccs.get_sccs_adjacency_list(adjacency_list)
     groups = [[sorted_vars[i] for i in g] for g in index_groups]
+    print(f"Number of SCCs: {len(groups)}")
+    print(f"Sizes of SCCs: {[len(group) for group in groups]}")
     return groups
 
 # Expects a list of axioms *with the same head* and returns a subset consisting
