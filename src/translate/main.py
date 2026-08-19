@@ -669,9 +669,17 @@ def build_implied_facts(strips_to_sas, groups, mutex_groups):
 
 def dump_statistics(sas_task):
     print("Translator variables: %d" % len(sas_task.variables.ranges))
-    print("Translator derived variables: %d" %
-          len([layer for layer in sas_task.variables.axiom_layers
-               if layer >= 0]))
+    num_der = len([layer for layer in sas_task.variables.axiom_layers if layer >= 0])
+    tot_in_cond, precond, effcond, goalcond = sas_task.calculate_number_of_derived_variables_in_conditions()
+    print("Translator derived variables: %d" % num_der)
+    print(f"Translator total derived variables in precond: {tot_in_cond}")
+    print(f"Translator derived variables in precond: {precond}")
+    print(f"Translator derived variables in effcond: {effcond}")
+    print(f"Translator derived variables in goalcond: {goalcond}")
+    print(f"Translator total ratio variables in precond: {tot_in_cond / num_der if tot_in_cond > 0 else 0.0}")
+    print(f"Translator ratio variables in precond: {precond / num_der if precond > 0 else 0.0}")
+    print(f"Translator ratio variables in effcond: {effcond / num_der if effcond > 0 else 0.0}")
+    print(f"Translator ratio variables in goalcond: {goalcond / num_der if goalcond > 0 else 0.0}")
     print("Translator facts: %d" % sum(sas_task.variables.ranges))
     print("Translator goal facts: %d" % len(sas_task.goal.pairs))
     print("Translator mutex groups: %d" % len(sas_task.mutexes))
@@ -701,12 +709,6 @@ def main():
     print(f"Translator axiom refactored disjunctions: {normalize.num_refactored_disj}")
     print(f"Translator total blow-up potential: {normalize.tot_blowup_potential}")
     print(f"Number of reused Axioms: {normalize.num_reused_axioms}")
-    if task.num_derived_vars > 0:
-        print(f"Number of derived variables in Preconditions: {normalize.num_derived_in_cond}")
-        print(f"Ratio of derived variables in Preconditions: {normalize.num_derived_in_cond / task.num_derived_vars}")
-    else:
-        print(f"Number of derived variables Preconditions: 0")
-        print(f"Ratio of derived variables Preconditions: 0")
 
     if get_options().generate_relaxed_task:
         # Remove delete effects.

@@ -20,7 +20,7 @@ class SASTask:
     see issue1176."""
 
     def __init__(self,
-                 variables: "SASTask",
+                 variables: "SASVariables",
                  mutexes: List["SASMutexGroup"],
                  init: "SASInit",
                  goal: "SASGoal",
@@ -38,6 +38,31 @@ class SASTask:
         self.metric = metric
         if DEBUG:
             self.validate()
+
+    def calculate_number_of_derived_variables_in_conditions(self):
+        necessary_pre_derived_vars = set()
+        necessary_effcond_derived_vars = set()
+        necessary_goal_derived_vars = set()
+
+        for op in self.operators:
+            prevail = op.prevail
+            for var, _ in prevail:
+                if self.variables.axiom_layers[var] != -1:
+                    necessary_pre_derived_vars.add(var)
+
+            pre_post = op.pre_post
+            for eff_var, _, _, cond in pre_post:
+                assert(self.variables.axiom_layers[eff_var] == -1)
+                for var, _ in cond:
+                    if self.variables.axiom_layers[var] != -1:
+                        necessary_effcond_derived_vars.add(var)
+
+        for var, _ in self.goal.pairs:
+            if self.variables.axiom_layers[var] != -1:
+                necessary_goal_derived_vars.add(var)
+
+        return (len(necessary_goal_derived_vars | necessary_pre_derived_vars | necessary_effcond_derived_vars), len(necessary_pre_derived_vars), len(necessary_effcond_derived_vars), len(necessary_goal_derived_vars))
+
 
     def validate(self):
         """Fail an assertion if the task is invalid.
