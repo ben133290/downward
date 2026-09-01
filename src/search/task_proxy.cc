@@ -19,10 +19,11 @@ State::State(
       buffer(buffer),
       values(nullptr),
       state_packer(&registry.get_state_packer()),
-      num_variables(registry.get_num_variables()) {
+      num_variables(task.get_num_variables()),
+      num_registry_variables(registry.get_num_variables()) {
     assert(id != StateID::no_state);
     assert(buffer);
-    assert(num_variables == task.get_num_variables());
+    assert(num_variables >= num_registry_variables);
 }
 
 State::State(

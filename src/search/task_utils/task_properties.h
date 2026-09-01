@@ -16,6 +16,7 @@ inline bool is_applicable(OperatorProxy op, const State &state) {
 }
 
 inline bool is_goal_state(TaskProxy task, const State &state) {
+    // state.unpack();
     for (FactProxy goal : task.get_goals()) {
         if (state[goal.get_variable()] != goal)
             return false;

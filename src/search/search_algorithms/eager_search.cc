@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <set>
