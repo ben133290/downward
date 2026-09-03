@@ -3,6 +3,7 @@
 #include "per_state_information.h"
 #include "task_proxy.h"
 
+#include "task_utils/registry_variables.h"
 #include "task_utils/task_properties.h"
 #include "utils/logging.h"
 
@@ -59,7 +60,7 @@ const State &StateRegistry::get_initial_state() {
         fill_n(buffer.get(), num_bins, 0);
 
         State initial_state = task_proxy.get_initial_state();
-        RegistryVariablesProxy registry_vars =
+        registry_variables::RegistryVariablesProxy registry_vars =
             task_proxy.get_registry_variables();
         for (size_t i = 0; i < registry_vars.size(); ++i) {
             state_packer.set(
@@ -101,7 +102,7 @@ State StateRegistry::get_successor_state(
             }
         }
         axiom_evaluator.evaluate(new_values);
-        RegistryVariablesProxy registry_vars =
+        registry_variables::RegistryVariablesProxy registry_vars =
             task_proxy.get_registry_variables();
         for (size_t i = 0; i < registry_vars.size(); ++i) {
             state_packer.set(

@@ -7,6 +7,7 @@
 #include "task_id.h"
 
 #include "algorithms/int_packer.h"
+#include "task_utils/registry_variables.h"
 #include "utils/collections.h"
 #include "utils/hash.h"
 #include "utils/system.h"
@@ -33,7 +34,6 @@ class StateRegistry;
 class TaskProxy;
 class VariableProxy;
 class VariablesProxy;
-class RegistryVariablesProxy;
 
 namespace causal_graph {
 class CausalGraph;
@@ -656,76 +656,6 @@ inline void feed(HashState &hash_state, const State &state) {
 }
 }
 
-class RegistryVariablesProxy {
-    const AbstractTask *task;
-
-    void mark_variables(
-        const ConditionsProxy &conditions, std::vector<bool> &marked) {
-        for (FactProxy fact : conditions) {
-            int var_id = fact.get_variable().get_id();
-            if (!marked[var_id]) {
-                marked[var_id] = true;
-                registry_variable_ids.push_back(var_id);
-            }
-        }
-    }
-
-public:
-    using ItemType = VariableProxy;
-    std::vector<std::size_t> registry_variable_ids;
-    explicit RegistryVariablesProxy(const AbstractTask &task) : task(&task) {
-        std::vector<bool> marked(task.get_num_variables(), false);
-        // primary variables
-        for (int id = 0; id < task.get_num_variables(); id++) {
-            VariableProxy var(task, id);
-            if (!var.is_derived()) {
-                marked[id] = true;
-                registry_variable_ids.push_back(id);
-            }
-        }
-
-        // precondition derived
-        for (OperatorProxy op : OperatorsProxy(task)) {
-            mark_variables(op.get_preconditions(), marked);
-            // effect condition derived
-            for (EffectProxy effect : op.get_effects()) {
-                mark_variables(effect.get_conditions(), marked);
-            }
-        }
-        // goal condition derived
-        mark_variables(GoalsProxy(task), marked);
-
-        // TODO: I don't know yet if we need to preserve varibale id order, but
-        // if we do we could sort here
-    }
-    ~RegistryVariablesProxy() = default;
-
-    std::size_t size() const {
-        return registry_variable_ids.size();
-    }
-
-    VariableProxy operator[](std::size_t index) const {
-        assert(index < size());
-        return VariableProxy(*task, registry_variable_ids[index]);
-    }
-
-    std::size_t convert_index(std::size_t index) const {
-        std::size_t registry_index;
-        bool found_index = false;
-        for (std::size_t i = 0; i < size(); ++i) {
-            if (registry_variable_ids[i] == index) {
-                registry_index = i;
-                found_index = true;
-                break;
-            }
-        }
-        if (!found_index) {
-            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-        }
-        return registry_index;
-    }
-};
-
 class TaskProxy {
     const AbstractTask *task;
 public:
@@ -746,8 +676,9 @@ public:
         return VariablesProxy(*task);
     }
 
-    RegistryVariablesProxy get_registry_variables() const {
-        return RegistryVariablesProxy(*task);
+    const registry_variables::RegistryVariablesProxy &
+    get_registry_variables() const {
+        return registry_variables::get_registry_variables(task);
     }
 
     OperatorsProxy get_operators() const {
@@ -871,55 +802,16 @@ inline void State::unpack() const {
         */
         values = std::make_shared<std::vector<int>>(num_variables);
 
-        RegistryVariablesProxy registry_variables(
-            *task); // TODO: This is a problem because the construction is
-                    // potentially expensive.
+        const registry_variables::RegistryVariablesProxy
+            &registry_variables_proxy =
+                registry_variables::get_registry_variables(task);
         for (int reg_index = 0; reg_index < num_registry_variables;
              ++reg_index) {
             // Mapping from registry variable index to regurlar
-            int var_index = registry_variables.registry_variable_ids[reg_index];
-
+            int var_index = registry_variables_proxy[reg_index].get_id();
             (*values)[var_index] = state_packer->get(buffer, reg_index);
         }
     }
-}
-
-inline void State::dump() const {
-    if (!values) {
-        unpack();
-    }
-
-    std::vector<bool> is_registry_variable(num_variables, false);
-
-    RegistryVariablesProxy registry_variables(*task);
-    for (int var_id : registry_variables.registry_variable_ids) {
-        is_registry_variable[var_id] = true;
-    }
-
-    VariablesProxy variables(*task);
-
-    std::cout << "State";
-    if (registry) {
-        std::cout << " (registered, id=" << id << ")";
-    } else {
-        std::cout << " (unregistered)";
-    }
-    std::cout << ":" << std::endl;
-
-    for (std::size_t var_id = 0; var_id < variables.size(); ++var_id) {
-        VariableProxy var = variables[var_id];
-        int value = (*values)[var_id];
-
-        std::cout << "  " << (is_registry_variable[var_id] ? "* " : "  ") << "["
-                  << var_id << "] " << var.get_name() << " = " << value;
-
-        // Optionally print the human-readable fact name as well.
-        std::cout << " (" << var.get_fact(value).get_name() << ")";
-
-        std::cout << std::endl;
-    }
-
-    std::cout << "  * = registry variable" << std::endl;
 }
 
 inline std::size_t State::size() const {
@@ -937,8 +829,11 @@ inline FactProxy State::operator[](std::size_t var_id) const {
     } else {
         assert(buffer);
         assert(state_packer);
-        RegistryVariablesProxy registry_variables(*task);
-        std::size_t registry_index = registry_variables.convert_index(var_id);
+        const registry_variables::RegistryVariablesProxy
+            &registry_variables_proxy =
+                registry_variables::get_registry_variables(task);
+        std::size_t registry_index =
+            registry_variables_proxy.convert_index(var_id);
         return FactProxy(
             *task, var_id, state_packer->get(buffer, registry_index));
     }

@@ -784,6 +784,7 @@ create_fast_downward_library(
     HELP "Task properties"
     SOURCES
         task_utils/task_properties
+        task_utils/registry_variables
     DEPENDENCY_ONLY
 )
 

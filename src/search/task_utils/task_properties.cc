@@ -102,7 +102,7 @@ void print_variable_statistics(const TaskProxy &task_proxy) {
 
     int num_facts = 0;
     VariablesProxy variables = task_proxy.get_variables();
-    RegistryVariablesProxy registry_variables =
+    registry_variables::RegistryVariablesProxy registry_variables =
         task_proxy.get_registry_variables();
     for (VariableProxy var : variables)
         num_facts += var.get_domain_size();
@@ -171,11 +171,12 @@ void dump_task(const TaskProxy &task_proxy) {
 
 PerTaskInformation<int_packer::IntPacker> g_state_packers(
     [](const TaskProxy &task_proxy) {
-        RegistryVariablesProxy registry_variables =
+        registry_variables::RegistryVariablesProxy registry_variables =
             task_proxy.get_registry_variables();
         vector<int> variable_ranges;
         variable_ranges.reserve(registry_variables.size());
-        for (VariableProxy var : registry_variables) {
+        for (std::size_t i = 0; i < registry_variables.size(); ++i) {
+            VariableProxy var = registry_variables[i];
             variable_ranges.push_back(var.get_domain_size());
         }
         return make_unique<int_packer::IntPacker>(variable_ranges);
