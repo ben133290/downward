@@ -12,12 +12,13 @@ using namespace std;
 
 State::State(
     const AbstractTask &task, const StateRegistry &registry, StateID id,
-    const PackedStateBin *buffer)
+    const PackedStateBin *buffer, bool evaluated)
     : task(&task),
       registry(&registry),
       id(id),
       buffer(buffer),
       values(nullptr),
+      evaluated(evaluated),
       state_packer(&registry.get_state_packer()),
       num_variables(task.get_num_variables()),
       num_registry_variables(registry.get_num_variables()) {
@@ -28,18 +29,19 @@ State::State(
 
 State::State(
     const AbstractTask &task, const StateRegistry &registry, StateID id,
-    const PackedStateBin *buffer, vector<int> &&values)
-    : State(task, registry, id, buffer) {
+    const PackedStateBin *buffer, vector<int> &&values, bool evaluated)
+    : State(task, registry, id, buffer, evaluated) {
     assert(num_variables == static_cast<int>(values.size()));
-    this->values = make_shared<vector<int>>(move(values));
+    this->values = make_shared<vector<int>>(std::move(values));
 }
 
-State::State(const AbstractTask &task, vector<int> &&values)
+State::State(const AbstractTask &task, vector<int> &&values, bool evaluated)
     : task(&task),
       registry(nullptr),
       id(StateID::no_state),
       buffer(nullptr),
-      values(make_shared<vector<int>>(move(values))),
+      values(make_shared<vector<int>>(std::move(values))),
+      evaluated(evaluated),
       state_packer(nullptr),
       num_variables(this->values->size()) {
     assert(num_variables == task.get_num_variables());
@@ -50,6 +52,12 @@ State State::get_unregistered_successor(const OperatorProxy &op) const {
     assert(task_properties::is_applicable(op, *this));
     assert(values);
     vector<int> new_values = get_unpacked_values();
+    if (!evaluated) {
+        std::cout
+            << "DEBUG: Tried to get the unregistered_successor of an unevaluated state"
+            << std::endl;
+        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    }
 
     for (EffectProxy effect : op.get_effects()) {
         if (does_fire(effect, *this)) {
@@ -62,9 +70,21 @@ State State::get_unregistered_successor(const OperatorProxy &op) const {
         AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[TaskProxy(*task)];
         axiom_evaluator.evaluate(new_values);
     }
-    return State(*task, move(new_values));
+    return State(*task, std::move(new_values), false);
 }
 
 const causal_graph::CausalGraph &TaskProxy::get_causal_graph() const {
     return causal_graph::get_causal_graph(task);
+}
+
+void State::evaluate() const {
+    assert(registry);
+    assert(values);
+
+    if (!values) {
+        unpack();
+    }
+
+    registry->evaluate_state(*values);
+    evaluated = true;
 }

@@ -46,15 +46,6 @@ RegistryVariablesProxy::RegistryVariablesProxy(const AbstractTask &task)
         }
     }
 
-    // precondition derived
-    for (OperatorProxy op : OperatorsProxy(task)) {
-        mark_variables(op.get_preconditions(), marked);
-
-        for (EffectProxy effect : op.get_effects()) {
-            mark_variables(effect.get_conditions(), marked);
-        }
-    }
-
     mark_variables(GoalsProxy(task), marked);
 }
 
@@ -81,6 +72,17 @@ std::size_t RegistryVariablesProxy::convert_index(std::size_t index) const {
         utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
     }
     return registry_index;
+}
+
+bool RegistryVariablesProxy::is_registry_variable(std::size_t var_id) const {
+    bool found_index = false;
+    for (std::size_t i = 0; i < size(); ++i) {
+        if (registry_variable_ids[i] == var_id) {
+            found_index = true;
+            break;
+        }
+    }
+    return found_index;
 }
 
 }

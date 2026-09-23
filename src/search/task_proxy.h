@@ -15,6 +15,7 @@
 #include <cassert>
 #include <cstddef>
 #include <iterator>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -582,6 +583,7 @@ class State {
       semantics of the state".
     */
     mutable std::shared_ptr<std::vector<int>> values;
+    mutable bool evaluated;
     const int_packer::IntPacker *state_packer;
     int num_variables;
     int num_registry_variables;
@@ -591,13 +593,14 @@ public:
     // Construct a registered state with only packed data.
     State(
         const AbstractTask &task, const StateRegistry &registry, StateID id,
-        const PackedStateBin *buffer);
+        const PackedStateBin *buffer, bool evaluated);
     // Construct a registered state with packed and unpacked data.
     State(
         const AbstractTask &task, const StateRegistry &registry, StateID id,
-        const PackedStateBin *buffer, std::vector<int> &&values);
+        const PackedStateBin *buffer, std::vector<int> &&values,
+        bool evaluated);
     // Construct a state with only unpacked data.
-    State(const AbstractTask &task, std::vector<int> &&values);
+    State(const AbstractTask &task, std::vector<int> &&values, bool evaluated);
 
     bool operator==(const State &other) const;
     bool operator!=(const State &other) const;
@@ -605,7 +608,8 @@ public:
     /* Generate unpacked data if it is not available yet. Calling the function
        on a state that already has unpacked data has no effect. */
     void unpack() const;
-    void dump() const;
+
+    void evaluate() const;
 
     std::size_t size() const;
     std::size_t registry_size() const;
@@ -693,26 +697,27 @@ public:
         return GoalsProxy(*task);
     }
 
-    State create_state(std::vector<int> &&state_values) const {
-        return State(*task, std::move(state_values));
-    }
-
-    // This method is meant to be called only by the state registry.
-    State create_state(
-        const StateRegistry &registry, StateID id,
-        const PackedStateBin *buffer) const {
-        return State(*task, registry, id, buffer);
+    State create_state(std::vector<int> &&state_values, bool evaluated) const {
+        return State(*task, std::move(state_values), evaluated);
     }
 
     // This method is meant to be called only by the state registry.
     State create_state(
         const StateRegistry &registry, StateID id, const PackedStateBin *buffer,
-        std::vector<int> &&state_values) const {
-        return State(*task, registry, id, buffer, std::move(state_values));
+        bool evaluated) const {
+        return State(*task, registry, id, buffer, evaluated);
+    }
+
+    // This method is meant to be called only by the state registry.
+    State create_state(
+        const StateRegistry &registry, StateID id, const PackedStateBin *buffer,
+        std::vector<int> &&state_values, bool evaluated) const {
+        return State(
+            *task, registry, id, buffer, std::move(state_values), evaluated);
     }
 
     State get_initial_state() const {
-        return create_state(task->get_initial_state_values());
+        return create_state(task->get_initial_state_values(), false);
     }
 
     /*
@@ -733,7 +738,7 @@ public:
         std::vector<int> state_values = ancestor_state.get_unpacked_values();
         task->convert_ancestor_state_values(
             state_values, ancestor_task_proxy.task);
-        return create_state(std::move(state_values));
+        return create_state(std::move(state_values), false);
     }
 
     const causal_graph::CausalGraph &get_causal_graph() const;
@@ -824,19 +829,37 @@ inline std::size_t State::registry_size() const {
 
 inline FactProxy State::operator[](std::size_t var_id) const {
     assert(var_id < size());
-    if (values) {
+    const registry_variables::RegistryVariablesProxy &registry_variables_proxy =
+        registry_variables::get_registry_variables(task);
+    // if not a registered state
+    if (!registry) {
         return FactProxy(*task, var_id, (*values)[var_id]);
-    } else {
+    }
+
+    if (values) {
+        if (!evaluated) {
+            evaluate();
+        }
+        return FactProxy(*task, var_id, (*values)[var_id]);
+    }
+
+    if (registry_variables_proxy.is_registry_variable(var_id)) {
         assert(buffer);
         assert(state_packer);
-        const registry_variables::RegistryVariablesProxy
-            &registry_variables_proxy =
-                registry_variables::get_registry_variables(task);
         std::size_t registry_index =
             registry_variables_proxy.convert_index(var_id);
         return FactProxy(
             *task, var_id, state_packer->get(buffer, registry_index));
+    } else {
+        unpack();
+        evaluate();
+
+        return FactProxy(*task, var_id, (*values)[var_id]);
     }
+
+    std::cerr << "could not access the variable " << var_id << "in state " << id
+              << std::endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
 }
 
 inline FactProxy State::operator[](VariableProxy var) const {

@@ -362,7 +362,7 @@ bool CEGAR::get_flaws_for_pattern(
     vector<int> current_state = concrete_init.get_unpacked_values();
     FlawList new_flaws = apply_plan(collection_index, current_state);
     if (new_flaws.empty()) {
-        State final_state(*task, move(current_state));
+        State final_state(*task, move(current_state), false);
         if (task_properties::is_goal_state(task_proxy, final_state)) {
             if (log.is_at_least_verbose()) {
                 log << "plan led to a concrete goal state: ";

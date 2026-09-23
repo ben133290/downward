@@ -43,13 +43,16 @@ StateID StateRegistry::insert_id_or_pop_state() {
 
 State StateRegistry::lookup_state(StateID id) const {
     const PackedStateBin *buffer = state_data_pool[id.value];
-    return task_proxy.create_state(*this, id, buffer);
+    return task_proxy.create_state(*this, id, buffer, false);
 }
 
 State StateRegistry::lookup_state(
     StateID id, vector<int> &&state_values) const {
     const PackedStateBin *buffer = state_data_pool[id.value];
-    return task_proxy.create_state(*this, id, buffer, std::move(state_values));
+
+    axiom_evaluator.evaluate(state_values);
+    return task_proxy.create_state(
+        *this, id, buffer, std::move(state_values), true);
 }
 
 const State &StateRegistry::get_initial_state() {
@@ -63,6 +66,7 @@ const State &StateRegistry::get_initial_state() {
         registry_variables::RegistryVariablesProxy registry_vars =
             task_proxy.get_registry_variables();
         for (size_t i = 0; i < registry_vars.size(); ++i) {
+            std::cout << "DEBUG: 3" << std::endl;
             state_packer.set(
                 buffer.get(), i,
                 initial_state[registry_vars.registry_variable_ids[i]]
@@ -70,6 +74,7 @@ const State &StateRegistry::get_initial_state() {
         }
         state_data_pool.push_back(buffer.get());
         StateID id = insert_id_or_pop_state();
+        std::cout << "DEBUG: 2" << std::endl;
         cached_initial_state = make_unique<State>(lookup_state(id));
     }
     return *cached_initial_state;
@@ -141,4 +146,8 @@ int StateRegistry::get_state_size_in_bytes() const {
 void StateRegistry::print_statistics(utils::LogProxy &log) const {
     log << "Number of registered states: " << size() << endl;
     registered_states.print_statistics(log);
+}
+
+void StateRegistry::evaluate_state(vector<int> &state_values) const {
+    axiom_evaluator.evaluate(state_values);
 }

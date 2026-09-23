@@ -174,6 +174,8 @@ class StateRegistry : public subscriber::SubscriberService<StateRegistry> {
 public:
     explicit StateRegistry(const TaskProxy &task_proxy);
 
+    void evaluate_state(std::vector<int> &state_values) const;
+
     const TaskProxy &get_task_proxy() const {
         return task_proxy;
     }

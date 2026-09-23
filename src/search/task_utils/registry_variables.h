@@ -29,6 +29,8 @@ public:
     VariableProxy operator[](std::size_t index) const;
 
     std::size_t convert_index(std::size_t index) const;
+
+    bool is_registry_variable(std::size_t var_id) const;
 };
 
 extern const RegistryVariablesProxy &get_registry_variables(
