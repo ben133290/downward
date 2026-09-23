@@ -79,7 +79,6 @@ void EagerSearch::initialize() {
     path_dependent_evaluators.assign(evals.begin(), evals.end());
 
     State initial_state = state_registry.get_initial_state();
-    std::cout << "DEBUG: 1" << std::endl;
     initial_state.evaluate();
 
     for (Evaluator *evaluator : path_dependent_evaluators) {

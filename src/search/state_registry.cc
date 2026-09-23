@@ -66,7 +66,6 @@ const State &StateRegistry::get_initial_state() {
         registry_variables::RegistryVariablesProxy registry_vars =
             task_proxy.get_registry_variables();
         for (size_t i = 0; i < registry_vars.size(); ++i) {
-            std::cout << "DEBUG: 3" << std::endl;
             state_packer.set(
                 buffer.get(), i,
                 initial_state[registry_vars.registry_variable_ids[i]]
@@ -74,7 +73,6 @@ const State &StateRegistry::get_initial_state() {
         }
         state_data_pool.push_back(buffer.get());
         StateID id = insert_id_or_pop_state();
-        std::cout << "DEBUG: 2" << std::endl;
         cached_initial_state = make_unique<State>(lookup_state(id));
     }
     return *cached_initial_state;
