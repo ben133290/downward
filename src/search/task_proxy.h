@@ -611,6 +611,12 @@ public:
 
     void evaluate() const;
 
+    bool is_evaluated() const {
+        return evaluated;
+    }
+
+    void dump() const;
+
     std::size_t size() const;
     std::size_t registry_size() const;
     FactProxy operator[](std::size_t var_id) const;
@@ -816,6 +822,25 @@ inline void State::unpack() const {
             int var_index = registry_variables_proxy[reg_index].get_id();
             (*values)[var_index] = state_packer->get(buffer, reg_index);
         }
+    }
+}
+
+inline void State::dump() const {
+    std::cout << "Dumping State values: " << id << " [";
+    if (values) {
+        const registry_variables::RegistryVariablesProxy
+            &registry_variables_proxy =
+                registry_variables::get_registry_variables(task);
+        for (std::size_t i = 0; i < values->size(); i++) {
+            if (registry_variables_proxy.is_registry_variable(i)) {
+                std::cout << (*values)[i] << " r, ";
+            } else {
+                std::cout << (*values)[i] << " n, ";
+            }
+        }
+        std::cout << "]" << std::endl;
+    } else {
+        std::cout << "not unpacked";
     }
 }
 

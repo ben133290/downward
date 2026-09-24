@@ -202,6 +202,9 @@ SearchStatus EagerSearch::expand(const SearchNode &node) {
     statistics.inc_expanded();
 
     const State &state = node.get_state();
+    if (!state.is_evaluated()) {
+        state.evaluate();
+    }
     if (check_goal_and_set_plan(state))
         return SOLVED;
 
