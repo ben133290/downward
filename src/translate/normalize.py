@@ -278,7 +278,7 @@ def axiom_refactor(task, mode):
                 tot_blowup_potential += bp
                 if bp >= 10:
                     type_map = proxy.get_type_map()
-                    proxy.set(refactor_all(proxy.condition))
+                    proxy.set(refactor_all(proxy.condition, type_map=type_map))
                     num_refactored_cond = num_refactored_cond + 1
 
 
