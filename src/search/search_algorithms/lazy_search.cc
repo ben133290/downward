@@ -59,6 +59,7 @@ void LazySearch::initialize() {
 
     path_dependent_evaluators.assign(evals.begin(), evals.end());
     State initial_state = state_registry.get_initial_state();
+    initial_state.evaluate();
     for (Evaluator *evaluator : path_dependent_evaluators) {
         evaluator->notify_initial_state(initial_state);
     }
@@ -131,12 +132,20 @@ SearchStatus LazySearch::fetch_next_state() {
     current_operator_id = next.second;
     State current_predecessor =
         state_registry.lookup_state(current_predecessor_id);
+    if (!current_predecessor.is_evaluated()) {
+        current_predecessor.unpack();
+        current_predecessor.evaluate();
+    }
     OperatorProxy current_operator =
         task_proxy.get_operators()[current_operator_id];
     assert(
         task_properties::is_applicable(current_operator, current_predecessor));
     current_state = state_registry.get_successor_state(
         current_predecessor, current_operator);
+    if (!current_state.is_evaluated()) {
+        current_state.unpack();
+        current_state.evaluate();
+    }
 
     SearchNode pred_node = search_space.get_node(current_predecessor);
     current_g = pred_node.get_g() + get_adjusted_cost(current_operator);
@@ -178,6 +187,10 @@ SearchStatus LazySearch::step() {
             if (!path_dependent_evaluators.empty()) {
                 State parent_state =
                     state_registry.lookup_state(current_predecessor_id);
+                if (!parent_state.is_evaluated()) {
+                    parent_state.unpack();
+                    parent_state.evaluate();
+                }
                 for (Evaluator *evaluator : path_dependent_evaluators)
                     evaluator->notify_state_transition(
                         parent_state, current_operator_id, current_state);
@@ -192,6 +205,10 @@ SearchStatus LazySearch::step() {
             } else {
                 State parent_state =
                     state_registry.lookup_state(current_predecessor_id);
+                if (!parent_state.is_evaluated()) {
+                    parent_state.unpack();
+                    parent_state.evaluate();
+                }
                 SearchNode parent_node = search_space.get_node(parent_state);
                 OperatorProxy current_operator =
                     task_proxy.get_operators()[current_operator_id];
